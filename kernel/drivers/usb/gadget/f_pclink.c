@@ -823,7 +823,7 @@ static int conn_gadget_bind_config(struct usb_configuration *c)
 {
 	struct conn_gadget_dev *dev = _conn_gadget_dev;
 
-	pr_debug("conn_gadget_bind_config\n");
+	printk(KERN_INFO "conn_gadget_bind_config\n");
 
 	dev->cdev = c->cdev;
 	dev->function.name = "pclink";

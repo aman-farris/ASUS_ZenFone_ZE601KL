@@ -877,7 +877,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 
 	if (!bind)
 		goto done;
-
+	printk(KERN_INFO "[JHW] %s +++\n", __func__);
 	DBG(cdev, "adding config #%u '%s'/%p\n",
 			config->bConfigurationValue,
 			config->label, config);
@@ -885,8 +885,9 @@ int usb_add_config(struct usb_composite_dev *cdev,
 	status = usb_add_config_only(cdev, config);
 	if (status)
 		goto done;
-
+	printk(KERN_INFO "[JHW] %s , bind, start\n", __func__);
 	status = bind(config);
+	printk(KERN_INFO "[JHW] %s , bind, finished\n", __func__);
 	if (status < 0) {
 		while (!list_empty(&config->functions)) {
 			struct usb_function		*f;
