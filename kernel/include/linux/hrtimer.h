@@ -116,6 +116,8 @@ struct hrtimer {
 	void				*start_site;
 	char				start_comm[16];
 #endif
+    int             start_pid_debug;
+    char            start_comm_debug[16];
 };
 
 /**

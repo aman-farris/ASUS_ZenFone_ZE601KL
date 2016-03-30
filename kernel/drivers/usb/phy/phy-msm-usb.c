@@ -51,7 +51,9 @@
 #include <linux/qpnp/qpnp-adc.h>
 
 #include <linux/msm-bus.h>
-
+#include <linux/path.h>
+#include <linux/namei.h>
+#include <linux/dcache.h>
 #define MSM_USB_BASE	(motg->regs)
 #define MSM_USB_PHY_CSR_BASE (motg->phy_csr_regs)
 
@@ -111,7 +113,8 @@ enum host_auto_sw {
 	HOST_AUTO_HOST,
 };
 
-const char *usb_device_list[] = {"/Removable/USBdisk1", "/sys/class/net/eth0", "/sys/class/sound/card1"};
+//const char *usb_device_list[] = {"/storage/USBdisk1", "/sys/class/net/eth0", "/sys/class/sound/card1"};
+const char *usb_device_list[] = {"/sys/class/net/eth0", "/sys/class/sound/card1"};
 static struct workqueue_struct *early_suspend_delay_wq;
 static struct delayed_work early_suspend_delay_work;
 static struct work_struct late_resume_work;
@@ -743,8 +746,19 @@ static bool asus_otg_keep_power_on_check(void)
 	mm_segment_t oldfs;
 	int index = 0, num = 0, ret = 0;
 
+	struct path p;
+	int err;
 	oldfs = get_fs();
 	set_fs(get_ds());
+	err = kern_path("/storage/USBdisk1", 0, &p);
+	if(!err) {
+		if(IS_ROOT(p.dentry )) {
+			ret = 1;
+			path_put(&p);
+			goto exit_fs_check;
+		}
+		path_put(&p);
+	}
 
 	num = sizeof(usb_device_list)/sizeof(usb_device_list[0]);
 
@@ -759,7 +773,7 @@ static bool asus_otg_keep_power_on_check(void)
 			break;
 		}
 	}
-
+exit_fs_check:
 	set_fs(oldfs);
 
 	return ret;
@@ -2628,6 +2642,19 @@ static void msm_otg_set_online_status(struct msm_otg *motg)
 	if (power_supply_set_online(psy, false))
 		dev_dbg(motg->phy.dev, "error setting power supply property\n");
 }
+extern bool g_Charger_mode;
+static void msm_otg_cdp_connect(struct msm_otg *motg)
+{
+	printk("[%s] %d\n", __func__, __LINE__);
+	if (g_Charger_mode && motg->chg_type == USB_CDP_CHARGER) {
+		//pull D+ for CDP port
+		printk("[%s] %d\n", __func__, __LINE__);
+		usb_gadget_connect(motg->phy.otg->gadget);
+		mdelay(100); //BC1.2 spec min timing is 40ms
+		usb_gadget_disconnect(motg->phy.otg->gadget);
+	}
+	printk("[%s] %d\n", __func__, __LINE__);
+}
 
 static void msm_otg_notify_charger(struct msm_otg *motg, unsigned mA)
 {
@@ -3901,6 +3928,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 					msm_otg_start_peripheral(otg, 1);
 					otg->phy->state =
 						OTG_STATE_B_PERIPHERAL;
+					msm_otg_cdp_connect(motg);
 					break;
 				case USB_ACA_C_CHARGER:
 					msm_otg_notify_charger(motg,

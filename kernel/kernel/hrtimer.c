@@ -821,6 +821,10 @@ static inline void timer_stats_hrtimer_set_start_info(struct hrtimer *timer)
 	memcpy(timer->start_comm, current->comm, TASK_COMM_LEN);
 	timer->start_pid = current->pid;
 #endif
+    if (timer->start_pid_debug != -1)
+        return;
+    memcpy(timer->start_comm_debug, current->comm, TASK_COMM_LEN);
+    timer->start_pid_debug= current->pid;
 }
 
 static inline void timer_stats_hrtimer_clear_start_info(struct hrtimer *timer)
@@ -1217,6 +1221,8 @@ static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 	timer->start_pid = -1;
 	memset(timer->start_comm, 0, TASK_COMM_LEN);
 #endif
+    timer->start_pid_debug = -1;
+    memset(timer->start_comm_debug, 0, TASK_COMM_LEN);
 }
 
 /**

@@ -479,7 +479,7 @@ static int android_enable(struct android_dev *dev)
 	struct usb_composite_dev *cdev = dev->cdev;
 	struct android_configuration *conf;
 	int err = 0;
-	printk(KERN_INFO "[JHW] %s +++, dev->disable_depth = %d\n", __func__, dev->disable_depth);
+
 	if (WARN_ON(!dev->disable_depth))
 		return err;
 
@@ -500,7 +500,6 @@ static int android_enable(struct android_dev *dev)
                         complete(&gadget_init);
                 }
 	}
-	printk(KERN_INFO "[JHW] %s , return %d ---\n", __func__, err);
 
 	return err;
 }
@@ -2965,11 +2964,9 @@ android_bind_enabled_functions(struct android_dev *dev,
 	struct android_configuration *conf =
 		container_of(c, struct android_configuration, usb_config);
 	int ret;
-	printk(KERN_INFO "[JHW] %s +++\n", __func__);
+
 	list_for_each_entry(f_holder, &conf->enabled_functions, enabled_list) {
-		printk(KERN_INFO "[JHW] %s: f->bind_config +++\n", __func__);
 		ret = f_holder->f->bind_config(f_holder->f, c);
-		printk(KERN_INFO "[JHW] %s: f->bind_config ---\n", __func__);
 		if (ret) {
 			pr_err("%s: %s failed\n", __func__, f_holder->f->name);
 			while (!list_empty(&c->functions)) {
@@ -2986,7 +2983,6 @@ android_bind_enabled_functions(struct android_dev *dev,
 			return ret;
 		}
 	}
-	printk(KERN_INFO "[JHW] %s ---\n", __func__);
 	return 0;
 }
 
@@ -3260,7 +3256,6 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 	mutex_lock(&dev->mutex);
 
 	sscanf(buff, "%d", &enabled);
-	printk(KERN_INFO "[JHW] enable_store, enable = %d, dev->enable = %d +++\n", enabled, dev->enabled);
 	if (enabled && !dev->enabled) {
 		/*
 		 * Update values in composite driver's copy of
@@ -3286,7 +3281,6 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 						"audio_source", 12))
 					audio_enabled = true;
 			}
-		printk(KERN_INFO "[JHW] %s: andio_enabled = %d +++\n", __func__, audio_enabled?1:0);
 		if (audio_enabled)
 			msleep(100);
 		err = android_enable(dev);
@@ -3311,7 +3305,6 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		pr_err("android_usb: already %s\n",
 				dev->enabled ? "enabled" : "disabled");
 	}
-	printk(KERN_INFO "[JHW] enable_store ---\n");
 
 	mutex_unlock(&dev->mutex);
 

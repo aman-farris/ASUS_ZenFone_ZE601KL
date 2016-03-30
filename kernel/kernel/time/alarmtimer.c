@@ -308,8 +308,13 @@ static int alarmtimer_suspend(struct device *dev)
 	ktime_t min, now;
 	unsigned long flags;
 	struct rtc_device *rtc;
+
 	int i;
 	int ret;
+    //<asus-jason20151207+> check wakeup alarm
+    struct timerqueue_node *nextWakeup;
+    int timertype=-1;
+    //<asus-jason20151207-> check wakeup alarm
 
 	spin_lock_irqsave(&freezer_delta_lock, flags);
 	min = freezer_delta;
@@ -333,11 +338,24 @@ static int alarmtimer_suspend(struct device *dev)
 		if (!next)
 			continue;
 		delta = ktime_sub(next->expires, base->gettime());
-		if (!min.tv64 || (delta.tv64 < min.tv64))
+        //<asus-jason20151207+> check wakeup alarm
+		if (!min.tv64 || (delta.tv64 < min.tv64)){
 			min = delta;
+            timertype = i;
+        }
+        //<asus-jason20151207-> check wakeup alarm
 	}
 	if (min.tv64 == 0)
 		return 0;
+
+    //<asus-jason20151207+> check wakeup alarm
+    if(timertype!=-1){
+        nextWakeup = timerqueue_getnext(&((struct alarm_base *)&alarm_bases[timertype])->timerqueue);
+        printk(KERN_WARNING "\n[WakeAlarmCheck] next rtc alarm pid=%d name=%s wake after %lld\n\n",
+                                    ((struct alarm *)nextWakeup)->timer.start_pid_debug,
+                                    ((struct alarm *)nextWakeup)->timer.start_comm_debug,min.tv64);
+    }
+    //<asus-jason20151207-> check wakeup alarm
 
 	if (ktime_to_ns(min) < 2 * NSEC_PER_SEC) {
 		__pm_wakeup_event(ws, 2 * MSEC_PER_SEC);
