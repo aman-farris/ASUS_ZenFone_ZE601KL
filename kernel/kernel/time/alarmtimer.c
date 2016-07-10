@@ -26,8 +26,6 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 
-#define ALARM_DELTA 120
-
 /**
  * struct alarm_base - Alarm timer bases
  * @lock:		Lock for syncrhonized access to the base
@@ -92,9 +90,7 @@ void set_power_on_alarm(long secs, bool enable)
 	 *to power up the device before actual alarm
 	 *expiration
 	 */
-	if ((alarm_time - ALARM_DELTA) > rtc_secs)
-		alarm_time -= ALARM_DELTA;
-	else
+	if (alarm_time <= rtc_secs)
 		goto disable_alarm;
 
 	rtc_time_to_tm(alarm_time, &alarm.time);
@@ -308,13 +304,8 @@ static int alarmtimer_suspend(struct device *dev)
 	ktime_t min, now;
 	unsigned long flags;
 	struct rtc_device *rtc;
-
 	int i;
 	int ret;
-    //<asus-jason20151207+> check wakeup alarm
-    struct timerqueue_node *nextWakeup;
-    int timertype=-1;
-    //<asus-jason20151207-> check wakeup alarm
 
 	spin_lock_irqsave(&freezer_delta_lock, flags);
 	min = freezer_delta;
@@ -338,24 +329,11 @@ static int alarmtimer_suspend(struct device *dev)
 		if (!next)
 			continue;
 		delta = ktime_sub(next->expires, base->gettime());
-        //<asus-jason20151207+> check wakeup alarm
-		if (!min.tv64 || (delta.tv64 < min.tv64)){
+		if (!min.tv64 || (delta.tv64 < min.tv64))
 			min = delta;
-            timertype = i;
-        }
-        //<asus-jason20151207-> check wakeup alarm
 	}
 	if (min.tv64 == 0)
 		return 0;
-
-    //<asus-jason20151207+> check wakeup alarm
-    if(timertype!=-1){
-        nextWakeup = timerqueue_getnext(&((struct alarm_base *)&alarm_bases[timertype])->timerqueue);
-        printk(KERN_WARNING "\n[WakeAlarmCheck] next rtc alarm pid=%d name=%s wake after %lld\n\n",
-                                    ((struct alarm *)nextWakeup)->timer.start_pid_debug,
-                                    ((struct alarm *)nextWakeup)->timer.start_comm_debug,min.tv64);
-    }
-    //<asus-jason20151207-> check wakeup alarm
 
 	if (ktime_to_ns(min) < 2 * NSEC_PER_SEC) {
 		__pm_wakeup_event(ws, 2 * MSEC_PER_SEC);
@@ -459,8 +437,13 @@ int alarm_start(struct alarm *alarm, ktime_t start)
  */
 int alarm_start_relative(struct alarm *alarm, ktime_t start)
 {
-	struct alarm_base *base = &alarm_bases[alarm->type];
+	struct alarm_base *base;
 
+	if (alarm->type >= ALARM_NUMTYPE) {
+		pr_err("Array out of index\n");
+		return -EINVAL;
+	}
+	base = &alarm_bases[alarm->type];
 	start = ktime_add(start, base->gettime());
 	return alarm_start(alarm, start);
 }
@@ -486,10 +469,15 @@ void alarm_restart(struct alarm *alarm)
  */
 int alarm_try_to_cancel(struct alarm *alarm)
 {
-	struct alarm_base *base = &alarm_bases[alarm->type];
+	struct alarm_base *base;
 	unsigned long flags;
 	int ret;
 
+	if (alarm->type >= ALARM_NUMTYPE) {
+		pr_err("Array out of index\n");
+		return -EINVAL;
+	}
+	base = &alarm_bases[alarm->type];
 	spin_lock_irqsave(&base->lock, flags);
 	ret = hrtimer_try_to_cancel(&alarm->timer);
 	if (ret >= 0)

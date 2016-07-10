@@ -116,8 +116,6 @@ struct hrtimer {
 	void				*start_site;
 	char				start_comm[16];
 #endif
-    int             start_pid_debug;
-    char            start_comm_debug[16];
 };
 
 /**
@@ -171,6 +169,7 @@ enum  hrtimer_base_type {
  * @clock_was_set:	Indicates that clock was set from irq context.
  * @expires_next:	absolute time of the next event which was scheduled
  *			via clock_set_next_event()
+ * @in_hrtirq:		hrtimer_interrupt() is currently executing
  * @hres_active:	State of high resolution mode
  * @hang_detected:	The last hrtimer interrupt detected a hang
  * @nr_events:		Total number of hrtimer interrupt events
@@ -185,6 +184,7 @@ struct hrtimer_cpu_base {
 	unsigned int			clock_was_set;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t				expires_next;
+	int				in_hrtirq;
 	int				hres_active;
 	int				hang_detected;
 	unsigned long			nr_events;
